@@ -1,0 +1,42 @@
+.abw-wrapper {
+	position: relative;
+}
+
+.abw-wrapper,
+.abw-wrapper * {
+	backface-visibility: hidden;
+}
+
+.abw-text-unit,
+.abw-text-word {
+	display: inline-block;
+	white-space: pre-wrap;
+}
+
+.abw-text-unit-line {
+	display: block;
+}
+
+.abw-text-character-mode .abw-text-word {
+	white-space: nowrap;
+}
+
+.abw-reduced-motion,
+.abw-reduced-motion * {
+	animation: none !important;
+	transition: none !important;
+	transform: none !important;
+	filter: none !important;
+	opacity: 1 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.abw-wrapper,
+	.abw-wrapper * {
+		animation: none !important;
+		transition: none !important;
+		transform: none !important;
+		filter: none !important;
+		opacity: 1 !important;
+	}
+}
