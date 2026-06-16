@@ -1,7 +1,7 @@
 {
-  "name": "@fearlessfuture/animation-block-wrapper-react",
+  "name": "@jsilff/anilibrary-react",
   "version": "0.1.0",
-  "description": "React wrapper component for AniLibrary-style content animations.",
+  "description": "React wrapper component for lightweight, library driven content animations.",
   "license": "GPL-2.0-or-later",
   "type": "module",
   "sideEffects": [

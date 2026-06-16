@@ -1,4 +1,4 @@
-# React Animation Block Wrapper
+# AniLibrary React
 
 React-first refactor of the WordPress AniLibrary wrapper block.
 
@@ -9,8 +9,8 @@ The current WordPress plugin remains in `../WordPress Animation Block Wrapper`. 
 Use a component as the API:
 
 ```tsx
-import { AnimationWrapper } from "@fearlessfuture/animation-block-wrapper-react";
-import "@fearlessfuture/animation-block-wrapper-react/styles.css";
+import { AnimationWrapper } from "@jsilff/anilibrary-react";
+import "@jsilff/anilibrary-react/styles.css";
 
 export function Example() {
   return (
@@ -54,7 +54,7 @@ The React API deliberately preserves the old runtime contract:
 import {
   getAnimationClassName,
   getAnimationDataAttributes,
-} from "@fearlessfuture/animation-block-wrapper-react";
+} from "@jsilff/anilibrary-react";
 
 const props = {
   className: getAnimationClassName({ preset: "fade" }),
