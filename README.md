@@ -1,8 +1,6 @@
 # AniLibrary React
 
-React-first refactor of the WordPress AniLibrary wrapper block.
-
-The current WordPress plugin remains in `../WordPress Animation Block Wrapper`. This repo is a separate React package so the animation system can be reused by React apps without coupling the public API to Gutenberg attributes or `InnerBlocks`.
+React-first refactor of the WordPress AniLibrary wrapper plugin.
 
 ## Recommended Shape
 
