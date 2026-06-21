@@ -57,6 +57,22 @@ The package also exports:
 - `setupAnimationWrapper`
 - `initAnimationWrappers`
 
+## Text presets
+
+When using `contentKind="text"` with presets like `letter-pop` or `word-cascade`, put the heading or paragraph **inside** the wrapper (recommended), or set `as="h1"` / `as="p"` so the wrapper is the text element itself — both patterns are supported as of v0.1.1.
+
+```tsx
+// Recommended
+<AnimationWrapper preset="letter-pop" trigger="load" contentKind="text" textGranularity="character">
+  <h1>Animated title</h1>
+</AnimationWrapper>
+
+// Also supported (v0.1.1+)
+<AnimationWrapper as="h1" preset="letter-pop" trigger="load" contentKind="text" textGranularity="character">
+  Animated title
+</AnimationWrapper>
+```
+
 ## WordPress Bridge
 
 The React API deliberately preserves the old runtime contract:

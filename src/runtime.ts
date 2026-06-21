@@ -220,6 +220,13 @@ function splitElementTextLines(element: HTMLElement, owningWrapper: HTMLElement)
 }
 
 function restoreTextSplits(wrapper: HTMLElement): void {
+	if (wrapper.dataset.abwOriginalHtml) {
+		wrapper.innerHTML = wrapper.dataset.abwOriginalHtml;
+		delete wrapper.dataset.abwSplitMode;
+		wrapper.classList.remove('abw-text-character-mode');
+		delete wrapper.dataset.abwOriginalHtml;
+	}
+
 	wrapper.querySelectorAll<HTMLElement>('[data-abw-original-html]').forEach((element) => {
 		element.innerHTML = element.dataset.abwOriginalHtml || element.innerHTML;
 		delete element.dataset.abwSplitMode;
@@ -240,14 +247,24 @@ function resolveTextStagger(stagger: number, textGranularity: string): number {
 	return 55;
 }
 
+function getTextSplitCandidates(wrapper: HTMLElement): HTMLElement[] {
+	const descendants = Array.from(wrapper.querySelectorAll<HTMLElement>(TEXT_SPLIT_SELECTOR)).filter((element) => {
+		return element.closest('.abw-wrapper') === wrapper;
+	});
+
+	if (wrapper.matches(TEXT_SPLIT_SELECTOR)) {
+		return [wrapper, ...descendants];
+	}
+
+	return descendants;
+}
+
 function getAnimationTargets(wrapper: HTMLElement, options: NormalizedAnimationOptions): HTMLElement[] {
 	const shouldTreatAsText = options.contentKind === 'text';
 	const mode = options.textGranularity;
 
 	if (shouldTreatAsText) {
-		const candidates = Array.from(wrapper.querySelectorAll<HTMLElement>(TEXT_SPLIT_SELECTOR)).filter((element) => {
-			return element.closest('.abw-wrapper') === wrapper;
-		});
+		const candidates = getTextSplitCandidates(wrapper);
 
 		candidates.forEach((element) => {
 			if (mode === 'line') {
