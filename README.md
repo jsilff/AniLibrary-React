@@ -65,7 +65,32 @@ That makes it possible to migrate the WordPress editor later without forcing a r
 ## Development
 
 ```bash
-npm install
+npm install   # runs prepare → build automatically
 npm run typecheck
 npm run build
 ```
+
+The compiled output lives in `dist/` (gitignored). `prepare` runs on `npm install`, `npm pack`, and publish so `dist/` is always built before the package is consumed.
+
+### Using locally in another project
+
+```bash
+# From this repo
+npm run build
+npm link
+
+# From your app
+npm link @jsilff/anilibrary-react
+```
+
+Or add a file dependency:
+
+```json
+{
+  "dependencies": {
+    "@jsilff/anilibrary-react": "file:../path/to/anilibrary-react"
+  }
+}
+```
+
+`npm install` in the app will trigger `prepare` and build `dist/` automatically.
