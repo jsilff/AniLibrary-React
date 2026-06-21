@@ -1,10 +1,23 @@
 # AniLibrary React
 
+[![npm version](https://img.shields.io/npm/v/@jsilff/anilibrary-react.svg)](https://www.npmjs.com/package/@jsilff/anilibrary-react)
+[![license](https://img.shields.io/npm/l/@jsilff/anilibrary-react.svg)](https://www.npmjs.com/package/@jsilff/anilibrary-react)
+
 React-first refactor of the WordPress AniLibrary wrapper plugin.
 
-## Recommended Shape
+- **npm:** [@jsilff/anilibrary-react](https://www.npmjs.com/package/@jsilff/anilibrary-react)
+- **GitHub:** [jsilff/AniLibrary-React](https://github.com/jsilff/AniLibrary-React)
+- **Releases:** [v0.1.0 and later](https://github.com/jsilff/AniLibrary-React/releases)
 
-Use a component as the API:
+## Installation
+
+```bash
+npm install @jsilff/anilibrary-react
+```
+
+Requires React 18.2+ as a peer dependency (`react` and `react-dom`).
+
+## Quick start
 
 ```tsx
 import { AnimationWrapper } from "@jsilff/anilibrary-react";
@@ -65,6 +78,8 @@ That makes it possible to migrate the WordPress editor later without forcing a r
 ## Development
 
 ```bash
+git clone https://github.com/jsilff/AniLibrary-React.git
+cd AniLibrary-React
 npm install   # runs prepare → build automatically
 npm run typecheck
 npm run build
@@ -94,3 +109,19 @@ Or add a file dependency:
 ```
 
 `npm install` in the app will trigger `prepare` and build `dist/` automatically.
+
+## Publishing
+
+Published releases are tagged on GitHub and published to npm. Each GitHub release corresponds to an npm version.
+
+**Current release:** [v0.1.0](https://github.com/jsilff/AniLibrary-React/releases/tag/v0.1.0) → [@jsilff/anilibrary-react@0.1.0](https://www.npmjs.com/package/@jsilff/anilibrary-react/v/0.1.0)
+
+To publish a new version:
+
+```bash
+npm version patch   # or minor / major
+git push origin main --tags
+npm publish
+```
+
+Pushing a `v*` tag also creates a [GitHub Release](https://github.com/jsilff/AniLibrary-React/releases) via CI.

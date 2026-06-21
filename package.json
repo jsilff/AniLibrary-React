@@ -2,7 +2,27 @@
   "name": "@jsilff/anilibrary-react",
   "version": "0.1.0",
   "description": "React wrapper component for lightweight, library driven content animations.",
+  "author": "Jonathan Silberman <jsil@fearless-future.com>",
   "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jsilff/AniLibrary-React.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jsilff/AniLibrary-React/issues"
+  },
+  "homepage": "https://github.com/jsilff/AniLibrary-React#readme",
+  "keywords": [
+    "react",
+    "animation",
+    "scroll-animation",
+    "intersection-observer",
+    "motion",
+    "anilibrary"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "sideEffects": [
     "**/*.css"
