@@ -66,30 +66,6 @@ function clearWrapperPlayed(wrapper: HTMLElement): void {
 	wrapper.classList.remove('abw-played');
 }
 
-function releaseAnimationEffect(target: HTMLElement, animation: Animation): void {
-	try {
-		if (animation.playState === 'finished') {
-			animation.commitStyles();
-		}
-	} catch {
-		// Ignore browsers that reject commitStyles.
-	}
-	try {
-		animation.cancel();
-	} catch {
-		// Ignore already-finished animations.
-	}
-	clearInlineState(target);
-}
-
-function markWrapperPlayed(wrapper: HTMLElement): void {
-	wrapper.classList.add('abw-played');
-}
-
-function clearWrapperPlayed(wrapper: HTMLElement): void {
-	wrapper.classList.remove('abw-played');
-}
-
 function keyframesStartHidden(keyframes: AnimationFrame[]): boolean {
 	const firstOpacity = keyframes[0]?.opacity;
 	if (firstOpacity === undefined) {
