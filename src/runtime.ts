@@ -42,6 +42,54 @@ function clearInlineState(target: HTMLElement): void {
 	target.style.filter = '';
 }
 
+function releaseAnimationEffect(target: HTMLElement, animation: Animation): void {
+	try {
+		if (animation.playState === 'finished') {
+			animation.commitStyles();
+		}
+	} catch {
+		// Ignore browsers that reject commitStyles.
+	}
+	try {
+		animation.cancel();
+	} catch {
+		// Ignore already-finished animations.
+	}
+	clearInlineState(target);
+}
+
+function markWrapperPlayed(wrapper: HTMLElement): void {
+	wrapper.classList.add('abw-played');
+}
+
+function clearWrapperPlayed(wrapper: HTMLElement): void {
+	wrapper.classList.remove('abw-played');
+}
+
+function releaseAnimationEffect(target: HTMLElement, animation: Animation): void {
+	try {
+		if (animation.playState === 'finished') {
+			animation.commitStyles();
+		}
+	} catch {
+		// Ignore browsers that reject commitStyles.
+	}
+	try {
+		animation.cancel();
+	} catch {
+		// Ignore already-finished animations.
+	}
+	clearInlineState(target);
+}
+
+function markWrapperPlayed(wrapper: HTMLElement): void {
+	wrapper.classList.add('abw-played');
+}
+
+function clearWrapperPlayed(wrapper: HTMLElement): void {
+	wrapper.classList.remove('abw-played');
+}
+
 function keyframesStartHidden(keyframes: AnimationFrame[]): boolean {
 	const firstOpacity = keyframes[0]?.opacity;
 	if (firstOpacity === undefined) {
@@ -353,13 +401,22 @@ function animateTargets(
 		if (!reverse) {
 			clearInlineState(target);
 		}
-		return target.animate(frames, {
+		const animation = target.animate(frames, {
 			duration: options.duration,
 			delay: delay + index * stagger,
 			easing: options.easing,
 			iterations,
 			fill,
 		});
+		const owningWrapper = target.closest<HTMLElement>('.abw-wrapper');
+		animation.addEventListener('finish', () => {
+			releaseAnimationEffect(target, animation);
+			if (owningWrapper) {
+				markWrapperPlayed(owningWrapper);
+			}
+		});
+		animation.addEventListener('cancel', () => clearInlineState(target));
+		return animation;
 	});
 }
 
@@ -396,6 +453,9 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 		cleanupCallbacks.forEach((callback) => callback());
 		cleanupCallbacks = [];
 		cancelWrapperAnimations(wrapper);
+		const targets = getAnimationTargets(wrapper, options);
+		targets.forEach((target) => clearInlineState(target));
+		clearWrapperPlayed(wrapper);
 		restoreTextSplits(wrapper);
 	};
 
@@ -425,6 +485,14 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 		targets.forEach((target) => applyInitialState(target, keyframes));
 	};
 
+	const runIfInViewport = (): boolean => {
+		if (!isWrapperInViewport(wrapper, options.threshold) || (options.once && hasPlayed)) {
+			return false;
+		}
+		run(false);
+		return true;
+	};
+
 	const attach = () => {
 		cleanup();
 		applyDataAttributes(wrapper, options);
@@ -444,8 +512,22 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 			return;
 		}
 
-		if (['scroll', 'load', 'click', 'loop'].includes(options.trigger) || (options.trigger === 'hover' && options.hideUntilHover)) {
-			primeInitialState();
+		const shouldPrimeHiddenState =
+			['scroll', 'load', 'click', 'loop'].includes(options.trigger) ||
+			(options.trigger === 'hover' && options.hideUntilHover);
+
+		if (shouldPrimeHiddenState) {
+			const alreadyInView = options.trigger === 'scroll' && isWrapperInViewport(wrapper, options.threshold);
+			if (alreadyInView) {
+				if (options.once && runIfInViewport()) {
+					return;
+				}
+				if (!options.once) {
+					runIfInViewport();
+				}
+			} else {
+				primeInitialState();
+			}
 		}
 
 		if (options.trigger === 'load' || options.trigger === 'loop') {
@@ -505,6 +587,14 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 			);
 			observer.observe(wrapper);
 			cleanupCallbacks.push(() => observer.disconnect());
+
+			// IntersectionObserver can miss elements already in view (common on mobile refresh).
+			const syncId = window.requestAnimationFrame(() => {
+				if (runIfInViewport() && options.once) {
+					observer.unobserve(wrapper);
+				}
+			});
+			cleanupCallbacks.push(() => window.cancelAnimationFrame(syncId));
 		} else {
 			const onScroll = () => {
 				if (isWrapperInViewport(wrapper, options.threshold) && (!options.once || !hasPlayed)) {
