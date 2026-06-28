@@ -125,19 +125,3 @@ Or add a file dependency:
 ```
 
 `npm install` in the app will trigger `prepare` and build `dist/` automatically.
-
-## Publishing
-
-Published releases are tagged on GitHub and published to npm. Each GitHub release corresponds to an npm version.
-
-**Current release:** [v0.1.0](https://github.com/jsilff/AniLibrary-React/releases/tag/v0.1.0) → [@jsilff/anilibrary-react@0.1.0](https://www.npmjs.com/package/@jsilff/anilibrary-react/v/0.1.0)
-
-To publish a new version:
-
-```bash
-npm version patch   # or minor / major
-git push origin main --tags
-npm publish
-```
-
-Pushing a `v*` tag also creates a [GitHub Release](https://github.com/jsilff/AniLibrary-React/releases) via CI.
