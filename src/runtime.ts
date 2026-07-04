@@ -1,6 +1,7 @@
 import { applyIntensityToKeyframes, clamp } from './intensity.js';
 import { resolvePresetKeyframes, type AnimationFrame } from './keyframes.js';
-import { getAnimationDataAttributes, normalizeAnimationOptions } from './options.js';
+import { getAnimationDataAttributes, keyframesStartHidden, normalizeAnimationOptions, shouldPrimeOnMount } from './options.js';
+import { applyOptionsAt, parseOptionsAtAttribute, subscribeOptionsAt } from './responsive.js';
 import type { AnimationOptions, AnimationRuntimeHandle, NormalizedAnimationOptions } from './types.js';
 
 const TEXT_SPLIT_SELECTOR = 'p,h1,h2,h3,h4,h5,h6,li,blockquote,figcaption';
@@ -17,8 +18,19 @@ function prefersReducedMotion(): boolean {
 	return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function applyDataAttributes(wrapper: HTMLElement, options: NormalizedAnimationOptions): void {
-	Object.entries(getAnimationDataAttributes(options)).forEach(([key, value]) => {
+function syncPendingClass(wrapper: HTMLElement, options: AnimationOptions): void {
+	if (shouldPrimeOnMount(options)) {
+		wrapper.classList.add('abw-pending');
+	} else {
+		wrapper.classList.remove('abw-pending');
+	}
+}
+
+function clearPendingClass(wrapper: HTMLElement): void {
+	wrapper.classList.remove('abw-pending');
+}
+function applyDataAttributes(wrapper: HTMLElement, options: NormalizedAnimationOptions, rawOptions: AnimationOptions): void {
+	Object.entries(getAnimationDataAttributes(rawOptions)).forEach(([key, value]) => {
 		wrapper.setAttribute(key, value);
 	});
 }
@@ -77,15 +89,6 @@ function markWrapperPlayedWhenComplete(wrapper: WrapperElement): void {
 
 function clearWrapperPlayed(wrapper: HTMLElement): void {
 	wrapper.classList.remove('abw-played');
-}
-
-function keyframesStartHidden(keyframes: AnimationFrame[]): boolean {
-	const firstOpacity = keyframes[0]?.opacity;
-	if (firstOpacity === undefined) {
-		return false;
-	}
-	const numericOpacity = Number(firstOpacity);
-	return !Number.isNaN(numericOpacity) && numericOpacity < 1;
 }
 
 function collectSplitTextNodes(element: HTMLElement, owningWrapper: HTMLElement): Text[] {
@@ -398,6 +401,7 @@ function animateTargets(
 	const frames = reverse ? [...keyframes].reverse() : keyframes;
 	const stagger = resolveStagger(options);
 	const delay = resolveInheritedDelay(targets[0]?.closest<HTMLElement>('.abw-wrapper') || targets[0], options.delay);
+	const startsHidden = keyframesStartHidden(frames);
 	const iterations = options.loop && !reverse
 		? Infinity
 		: options.preset === 'bounce-soft'
@@ -405,10 +409,10 @@ function animateTargets(
 			: 1;
 	const fill = options.loop
 		? delay > 0 ? 'backwards' : 'none'
-		: delay > 0 ? 'both' : 'forwards';
+		: (delay > 0 || startsHidden) ? 'both' : 'forwards';
 
 	return targets.map((target, index) => {
-		if (!reverse) {
+		if (!reverse && !startsHidden) {
 			clearInlineState(target);
 		}
 		const animation = target.animate(frames, {
@@ -454,11 +458,45 @@ function isWrapperInViewport(wrapper: HTMLElement, threshold: number): boolean {
 
 export function setupAnimationWrapper(element: HTMLElement, rawOptions: AnimationOptions = {}): AnimationRuntimeHandle {
 	const wrapper = element as WrapperElement;
-	let options = normalizeAnimationOptions(rawOptions);
+	let baseRawOptions = rawOptions;
+	let optionsAtList = rawOptions.optionsAt ?? [];
+	let options = normalizeAnimationOptions(applyOptionsAt(baseRawOptions, optionsAtList));
 	let cleanupCallbacks: Array<() => void> = [];
 	let hasPlayed = false;
 	let isPlaying = false;
 	let toggled = false;
+
+	const resolveOptions = () => normalizeAnimationOptions(applyOptionsAt(baseRawOptions, optionsAtList));
+
+	const observerConfigChanged = (next: NormalizedAnimationOptions) => {
+		return next.threshold !== options.threshold
+			|| next.rootMargin !== options.rootMargin
+			|| next.trigger !== options.trigger;
+	};
+
+	const refreshResolvedOptions = (reattachIfNeeded = false) => {
+		const next = resolveOptions();
+		const needsReattach = reattachIfNeeded && observerConfigChanged(next);
+		options = next;
+		applyDataAttributes(wrapper, options, { ...baseRawOptions, optionsAt: optionsAtList });
+		syncPendingClass(wrapper, applyOptionsAt(baseRawOptions, optionsAtList));
+
+		if (hasPlayed && options.once) {
+			return;
+		}
+		if (isPlaying) {
+			return;
+		}
+		if (needsReattach) {
+			attach();
+			return;
+		}
+		if (!hasPlayed || !options.once) {
+			const targets = getAnimationTargets(wrapper, options);
+			targets.forEach((target) => clearInlineState(target));
+			primeInitialState();
+		}
+	};
 
 	const cleanup = () => {
 		cleanupCallbacks.forEach((callback) => callback());
@@ -483,6 +521,7 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 		if (!targets.length) {
 			return;
 		}
+		clearPendingClass(wrapper);
 		cancelWrapperAnimations(wrapper);
 		isPlaying = true;
 		const animations = animateTargets(targets, keyframes, options, reverse);
@@ -506,6 +545,7 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 		}
 		const targets = getAnimationTargets(wrapper, options);
 		targets.forEach((target) => applyInitialState(target, keyframes));
+		clearPendingClass(wrapper);
 	};
 
 	const runIfInViewport = (): boolean => {
@@ -518,16 +558,23 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 
 	const attach = () => {
 		cleanup();
-		applyDataAttributes(wrapper, options);
+		options = resolveOptions();
+		applyDataAttributes(wrapper, options, { ...baseRawOptions, optionsAt: optionsAtList });
 		Array.from(wrapper.classList).forEach((className) => {
 			if (className.startsWith('abw-preset-') || className.startsWith('abw-trigger-') || className.startsWith('abw-kind-')) {
 				wrapper.classList.remove(className);
 			}
 		});
 		wrapper.classList.add('abw-wrapper', `abw-preset-${options.preset}`, `abw-trigger-${options.trigger}`, `abw-kind-${options.contentKind}`);
+		syncPendingClass(wrapper, applyOptionsAt(baseRawOptions, optionsAtList));
+
+		if (optionsAtList.length) {
+			cleanupCallbacks.push(subscribeOptionsAt(optionsAtList, () => refreshResolvedOptions(true)));
+		}
 
 		if (!canAnimate() || prefersReducedMotion()) {
 			wrapper.classList.add('abw-reduced-motion');
+			clearPendingClass(wrapper);
 			return;
 		}
 
@@ -645,7 +692,8 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 
 	return {
 		update(nextOptions: AnimationOptions) {
-			options = normalizeAnimationOptions(nextOptions);
+			baseRawOptions = nextOptions;
+			optionsAtList = nextOptions.optionsAt ?? [];
 			hasPlayed = false;
 			toggled = false;
 			attach();
@@ -658,6 +706,7 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 
 export function initAnimationWrappers(root: ParentNode = document): AnimationRuntimeHandle[] {
 	return Array.from(root.querySelectorAll<HTMLElement>('.abw-wrapper')).map((wrapper) => {
+		const optionsAt = parseOptionsAtAttribute(wrapper.dataset.ffawOptionsAt);
 		return setupAnimationWrapper(wrapper, {
 			preset: wrapper.dataset.ffawPreset as AnimationOptions['preset'],
 			contentKind: wrapper.dataset.ffawContentKind as AnimationOptions['contentKind'],
@@ -679,6 +728,7 @@ export function initAnimationWrappers(root: ParentNode = document): AnimationRun
 			inheritParentDelay: wrapper.dataset.ffawInheritParentDelay === '1',
 			followParentAnimation: wrapper.dataset.ffawFollowParentAnimation === '1',
 			textGranularity: wrapper.dataset.ffawTextGranularity as AnimationOptions['textGranularity'],
+			optionsAt,
 		});
 	});
 }

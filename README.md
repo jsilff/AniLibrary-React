@@ -48,14 +48,51 @@ Classes are still useful, but they should be an implementation detail. The wrapp
 - `once`, `loop`, `clickToggle`, `hideUntilHover`
 - `textGranularity`: `word`, `character`, or `line`
 - `inheritParentDelay`, `followParentAnimation`
+- `optionsAt`: responsive overrides keyed by CSS media query (see below)
 
 The package also exports:
 
 - `normalizeAnimationOptions`
+- `applyOptionsAt`
+- `shouldPrimeOnMount`
+- `animationStartsHidden`
 - `getAnimationClassName`
 - `getAnimationDataAttributes`
 - `setupAnimationWrapper`
 - `initAnimationWrappers`
+
+## Responsive options (`optionsAt`)
+
+Use `optionsAt` to override animation props at specific breakpoints. Entries are evaluated **in order**; the **first matching** `query` wins. Any prop except `optionsAt` itself can be overridden (`direction`, `stagger`, `rootMargin`, etc.).
+
+```tsx
+<AnimationWrapper
+  preset="slide"
+  trigger="scroll"
+  direction="right"
+  once
+  optionsAt={[
+    { query: "(max-width: 767px)", direction: "up" },
+  ]}
+>
+  <h2>Slides in from the right on desktop, up on mobile</h2>
+</AnimationWrapper>
+```
+
+On breakpoint change, the runtime re-resolves options and re-primes hidden state **before play**. Animations that already ran with `once` are not restarted.
+
+> **Note:** `prefers-reduced-motion: reduce` is handled globally by the library — animations are disabled automatically and content is shown immediately. You do not need (and should not add) a reduced-motion entry in `optionsAt`; doing so implies it is opt-in when it is already built in.
+
+## Initial hidden state (no flash on load)
+
+Scroll- and load-triggered presets that start hidden (fade, slide, zoom, etc.) use a two-step priming system so content does not flash visible before the animation runtime attaches:
+
+1. **`abw-pending` (CSS)** — applied at render time so the wrapper is hidden on first paint and during SSR hydration.
+2. **`primeInitialState()` (runtime)** — runs synchronously in `useLayoutEffect` before browser paint, applying the exact keyframe-from values (`opacity`, `transform`, `filter`) to animation targets.
+
+Once the animation runs or completes, pending/hidden styles are cleared. Presets that start fully visible (e.g. `pulse-soft`, `float-soft`) skip priming.
+
+Import `@jsilff/anilibrary-react/styles.css` in your app — the `.abw-pending` rule lives there.
 
 ## Staggered lists (one observer)
 

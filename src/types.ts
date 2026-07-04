@@ -56,6 +56,10 @@ export type ZoomMode = 'in' | 'out';
 export type TextGranularity = 'word' | 'character' | 'line';
 export type Easing = 'ease-out' | 'ease-in-out' | 'linear' | 'cubic-bezier(0.65,0,0.35,1)' | string;
 
+export type ResponsiveAnimationOverride = {
+	query: string;
+} & Partial<Omit<AnimationOptions, 'optionsAt'>>;
+
 export interface AnimationOptions {
 	preset?: AnimationPreset;
 	contentKind?: ContentKind;
@@ -77,9 +81,10 @@ export interface AnimationOptions {
 	inheritParentDelay?: boolean;
 	followParentAnimation?: boolean;
 	textGranularity?: TextGranularity;
+	optionsAt?: ResponsiveAnimationOverride[];
 }
 
-export interface NormalizedAnimationOptions extends Required<AnimationOptions> {
+export interface NormalizedAnimationOptions extends Required<Omit<AnimationOptions, 'optionsAt'>> {
 	preset: NormalizedAnimationPreset;
 	trigger: AnimationTrigger;
 }

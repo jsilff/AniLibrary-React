@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { getAnimationClassName, getAnimationDataAttributes, normalizeAnimationOptions } from './options.js';
+import React, { useLayoutEffect, useMemo, useRef } from 'react';
+import { applyOptionsAt } from './responsive.js';
+import { getAnimationClassName, getAnimationDataAttributes } from './options.js';
 import { setupAnimationWrapper } from './runtime.js';
 import type { AnimationOptions, AnimationRuntimeHandle } from './types.js';
 
@@ -35,13 +36,14 @@ export function AnimationWrapper({
 	inheritParentDelay,
 	followParentAnimation,
 	textGranularity,
+	optionsAt,
 	...domProps
 }: AnimationWrapperProps) {
 	const elementRef = useRef<HTMLElement | null>(null);
 	const runtimeRef = useRef<AnimationRuntimeHandle | null>(null);
 
-	const options = useMemo(
-		() => normalizeAnimationOptions({
+	const rawOptions = useMemo(
+		() => ({
 			preset,
 			contentKind,
 			trigger,
@@ -62,6 +64,7 @@ export function AnimationWrapper({
 			inheritParentDelay,
 			followParentAnimation,
 			textGranularity,
+			optionsAt,
 		}),
 		[
 			preset,
@@ -84,30 +87,36 @@ export function AnimationWrapper({
 			inheritParentDelay,
 			followParentAnimation,
 			textGranularity,
+			optionsAt,
 		]
 	);
 
-	useEffect(() => {
+	const renderOptions = useMemo(
+		() => applyOptionsAt(rawOptions, rawOptions.optionsAt ?? []),
+		[rawOptions]
+	);
+
+	useLayoutEffect(() => {
 		if (!elementRef.current || disabled) {
 			runtimeRef.current?.destroy();
 			runtimeRef.current = null;
 			return;
 		}
 
-		runtimeRef.current = setupAnimationWrapper(elementRef.current, options);
+		runtimeRef.current = setupAnimationWrapper(elementRef.current, rawOptions);
 		return () => {
 			runtimeRef.current?.destroy();
 			runtimeRef.current = null;
 		};
-	}, [disabled, options]);
+	}, [disabled, rawOptions]);
 
 	return React.createElement(
 		as,
 		{
 			...domProps,
-			...getAnimationDataAttributes(options),
+			...getAnimationDataAttributes(rawOptions),
 			ref: elementRef,
-			className: getAnimationClassName(options, className),
+			className: getAnimationClassName(renderOptions, className),
 		},
 		children
 	);

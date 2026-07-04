@@ -21,6 +21,11 @@
 	white-space: nowrap;
 }
 
+/* Hide content on first paint until the runtime primes keyframe-from state. */
+.abw-wrapper.abw-pending:not(.abw-played):not(.abw-reduced-motion) {
+	opacity: 0;
+}
+
 .abw-reduced-motion,
 .abw-reduced-motion * {
 	animation: none !important;

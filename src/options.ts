@@ -6,6 +6,9 @@ import type {
 	NormalizedAnimationPreset,
 	ZoomMode,
 } from './types.js';
+import { applyIntensityToKeyframes } from './intensity.js';
+import { resolvePresetKeyframes, type AnimationFrame } from './keyframes.js';
+import { applyOptionsAt } from './responsive.js';
 
 export const DEFAULT_ANIMATION_OPTIONS: NormalizedAnimationOptions = {
 	preset: 'fade',
@@ -97,6 +100,59 @@ export function normalizePresetSettings(
 	return { preset, direction, zoomMode };
 }
 
+function keyframesNeedPriming(keyframes: AnimationFrame[]): boolean {
+	const from = keyframes[0];
+	if (!from) {
+		return false;
+	}
+	const firstOpacity = from.opacity;
+	if (firstOpacity !== undefined) {
+		const numericOpacity = Number(firstOpacity);
+		if (!Number.isNaN(numericOpacity) && numericOpacity < 1) {
+			return true;
+		}
+	}
+	return from.transform !== undefined && from.transform !== 'none'
+		|| from.filter !== undefined && from.filter !== 'none';
+}
+
+export function keyframesStartHidden(keyframes: AnimationFrame[]): boolean {
+	return keyframesNeedPriming(keyframes);
+}
+
+export function animationStartsHidden(options: AnimationOptions = {}): boolean {
+	const merged = applyOptionsAt(options, options.optionsAt ?? []);
+	const normalized = normalizeAnimationOptions(merged);
+	const keyframes = applyIntensityToKeyframes(
+		resolvePresetKeyframes(normalized.preset, normalized.direction, normalized.zoomMode, normalized.textGranularity),
+		normalized.intensity
+	);
+	return keyframesStartHidden(keyframes);
+}
+
+export function shouldPrimeOnMount(options: AnimationOptions = {}): boolean {
+	const merged = applyOptionsAt(options, options.optionsAt ?? []);
+	const normalized = normalizeAnimationOptions(merged);
+
+	if (normalized.trigger === 'scroll-media' || normalized.trigger === 'inherit') {
+		return normalized.followParentAnimation && animationStartsHidden(merged);
+	}
+
+	if (normalized.trigger === 'hover' && !normalized.hideUntilHover) {
+		return false;
+	}
+
+	if (['scroll', 'load', 'click', 'loop'].includes(normalized.trigger)) {
+		return animationStartsHidden(merged);
+	}
+
+	if (normalized.trigger === 'hover' && normalized.hideUntilHover) {
+		return animationStartsHidden(merged);
+	}
+
+	return false;
+}
+
 export function normalizeAnimationOptions(options: AnimationOptions = {}): NormalizedAnimationOptions {
 	const normalizedPreset = normalizePresetSettings(options.preset, options.direction, options.zoomMode);
 	const trigger = normalizedPreset.preset === 'scroll-media' ? 'scroll-media' : options.trigger || DEFAULT_ANIMATION_OPTIONS.trigger;
@@ -124,14 +180,14 @@ export function getAnimationClassName(options: AnimationOptions = {}, className 
 		`abw-preset-${normalized.preset}`,
 		`abw-trigger-${normalized.trigger}`,
 		`abw-kind-${normalized.contentKind}`,
+		shouldPrimeOnMount(options) ? 'abw-pending' : '',
 		className,
 	].filter(Boolean).join(' ');
 }
 
 export function getAnimationDataAttributes(options: AnimationOptions = {}): Record<string, string> {
 	const normalized = normalizeAnimationOptions(options);
-
-	return {
+	const attributes: Record<string, string> = {
 		'data-ffaw-preset': normalized.preset,
 		'data-ffaw-content-kind': normalized.contentKind,
 		'data-ffaw-trigger': normalized.trigger,
@@ -153,4 +209,10 @@ export function getAnimationDataAttributes(options: AnimationOptions = {}): Reco
 		'data-ffaw-follow-parent-animation': normalized.followParentAnimation ? '1' : '0',
 		'data-ffaw-text-granularity': normalized.textGranularity,
 	};
+
+	if (options.optionsAt?.length) {
+		attributes['data-ffaw-options-at'] = JSON.stringify(options.optionsAt);
+	}
+
+	return attributes;
 }
