@@ -40,11 +40,11 @@ Classes are still useful, but they should be an implementation detail. The wrapp
 `AnimationWrapper` accepts these animation props:
 
 - `preset`: `fade`, `slide`, `zoom`, `blur-in`, `rotate-in`, `flip`, `text-rise`, `word-cascade`, `letter-pop`, `pulse-soft`, `float-soft`, or `bounce-soft`
-- `trigger`: `scroll`, `load`, `hover`, `click`, or `loop`
+- `trigger`: `scroll`, `load`, `hover`, `click`, `loop`, or `inherit`
 - `contentKind`: `text`, `media`, `layout`, or `mixed`
 - `direction`: `up`, `down`, `left`, `right`, `clockwise`, `counterclockwise`, `vertical`, or `horizontal`
 - `zoomMode`: `in` or `out`
-- `duration`, `delay`, `stagger`, `intensity`, `easing`, `threshold`
+- `duration`, `delay`, `stagger`, `intensity`, `easing`, `threshold`, `rootMargin`
 - `once`, `loop`, `clickToggle`, `hideUntilHover`
 - `textGranularity`: `word`, `character`, or `line`
 - `inheritParentDelay`, `followParentAnimation`
@@ -56,6 +56,49 @@ The package also exports:
 - `getAnimationDataAttributes`
 - `setupAnimationWrapper`
 - `initAnimationWrappers`
+
+## Staggered lists (one observer)
+
+For lists, grids, or timelines, prefer **one parent wrapper** with `contentKind="layout"` and `stagger` instead of wrapping each item in its own scroll-triggered `AnimationWrapper`. That uses a single `IntersectionObserver` and avoids mobile jitter from many observers re-firing.
+
+```tsx
+<AnimationWrapper
+  preset="slide"
+  trigger="scroll"
+  direction="up"
+  contentKind="layout"
+  stagger={80}
+  once
+  rootMargin="0px 0px -5% 0px"
+  className="grid gap-6"
+>
+  {items.map((item) => (
+    <article key={item.id}>{item.title}</article>
+  ))}
+</AnimationWrapper>
+```
+
+Direct children are stagger targets by default. Mark specific children with `className="abw-stagger-item"` or `data-ffaw-stagger-item="1"` when you need finer control.
+
+For lazy-mounted sections (e.g. below-the-fold content loaded after hydration), use `trigger="load"` on the parent instead of `scroll`.
+
+Nested child wrappers that should animate with the parent stagger (not their own observer) should use `trigger="inherit"` with `followParentAnimation`:
+
+```tsx
+<AnimationWrapper preset="fade" trigger="scroll" contentKind="layout" stagger={80} once>
+  {items.map((item) => (
+    <AnimationWrapper
+      key={item.id}
+      as="article"
+      preset="fade"
+      trigger="inherit"
+      followParentAnimation
+    >
+      {item.title}
+    </AnimationWrapper>
+  ))}
+</AnimationWrapper>
+```
 
 ## Text presets
 

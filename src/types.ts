@@ -39,7 +39,7 @@ export type NormalizedAnimationPreset =
 	| 'float-soft'
 	| 'bounce-soft';
 
-export type AnimationTrigger = 'scroll' | 'load' | 'hover' | 'click' | 'loop' | 'scroll-media';
+export type AnimationTrigger = 'scroll' | 'load' | 'hover' | 'click' | 'loop' | 'scroll-media' | 'inherit';
 export type ContentKind = 'text' | 'media' | 'layout' | 'mixed';
 export type Direction =
 	| 'up'
@@ -70,6 +70,7 @@ export interface AnimationOptions {
 	easing?: Easing;
 	once?: boolean;
 	threshold?: number;
+	rootMargin?: string;
 	loop?: boolean;
 	clickToggle?: boolean;
 	hideUntilHover?: boolean;

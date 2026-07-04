@@ -33,7 +33,6 @@
 /* Safety net when scroll animations complete or are torn down. */
 .abw-wrapper.abw-played > * {
 	opacity: 1 !important;
-	filter: none !important;
 	transform: none !important;
 }
 

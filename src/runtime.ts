@@ -62,6 +62,19 @@ function markWrapperPlayed(wrapper: HTMLElement): void {
 	wrapper.classList.add('abw-played');
 }
 
+function markWrapperPlayedWhenComplete(wrapper: WrapperElement): void {
+	const animations = wrapper.abwAnimations;
+	if (!animations?.length) {
+		return;
+	}
+	const allDone = animations.every(
+		(animation) => animation.playState === 'finished' || animation.playState === 'idle'
+	);
+	if (allDone) {
+		markWrapperPlayed(wrapper);
+	}
+}
+
 function clearWrapperPlayed(wrapper: HTMLElement): void {
 	wrapper.classList.remove('abw-played');
 }
@@ -271,6 +284,37 @@ function resolveTextStagger(stagger: number, textGranularity: string): number {
 	return 55;
 }
 
+function resolveStagger(options: NormalizedAnimationOptions): number {
+	if (options.stagger > 0) {
+		return options.stagger;
+	}
+	if (options.contentKind === 'text') {
+		return resolveTextStagger(options.stagger, options.textGranularity);
+	}
+	return 0;
+}
+
+function getLayoutStaggerTargets(wrapper: HTMLElement): HTMLElement[] {
+	const marked = Array.from(wrapper.children).filter((child): child is HTMLElement => {
+		if (!(child instanceof HTMLElement)) {
+			return false;
+		}
+		return child.classList.contains('abw-stagger-item') || child.dataset.ffawStaggerItem === '1';
+	});
+	if (marked.length) {
+		return marked;
+	}
+	return Array.from(wrapper.children).filter((child): child is HTMLElement => {
+		if (!(child instanceof HTMLElement)) {
+			return false;
+		}
+		if (child.classList.contains('abw-wrapper')) {
+			return child.dataset.ffawFollowParentAnimation === '1';
+		}
+		return true;
+	});
+}
+
 function getTextSplitCandidates(wrapper: HTMLElement): HTMLElement[] {
 	const descendants = Array.from(wrapper.querySelectorAll<HTMLElement>(TEXT_SPLIT_SELECTOR)).filter((element) => {
 		return element.closest('.abw-wrapper') === wrapper;
@@ -311,15 +355,7 @@ function getAnimationTargets(wrapper: HTMLElement, options: NormalizedAnimationO
 	}
 
 	restoreTextSplits(wrapper);
-	return Array.from(wrapper.children).filter((child): child is HTMLElement => {
-		if (!(child instanceof HTMLElement)) {
-			return false;
-		}
-		if (child.classList.contains('abw-wrapper')) {
-			return child.dataset.ffawFollowParentAnimation === '1';
-		}
-		return !child.querySelector('.abw-wrapper');
-	});
+	return getLayoutStaggerTargets(wrapper);
 }
 
 function cancelWrapperAnimations(wrapper: WrapperElement): void {
@@ -360,9 +396,7 @@ function animateTargets(
 	reverse = false
 ): Animation[] {
 	const frames = reverse ? [...keyframes].reverse() : keyframes;
-	const stagger = options.contentKind === 'text'
-		? resolveTextStagger(options.stagger, options.textGranularity)
-		: 0;
+	const stagger = resolveStagger(options);
 	const delay = resolveInheritedDelay(targets[0]?.closest<HTMLElement>('.abw-wrapper') || targets[0], options.delay);
 	const iterations = options.loop && !reverse
 		? Infinity
@@ -388,7 +422,7 @@ function animateTargets(
 		animation.addEventListener('finish', () => {
 			releaseAnimationEffect(target, animation);
 			if (owningWrapper) {
-				markWrapperPlayed(owningWrapper);
+				markWrapperPlayedWhenComplete(owningWrapper as WrapperElement);
 			}
 		});
 		animation.addEventListener('cancel', () => clearInlineState(target));
@@ -423,11 +457,13 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 	let options = normalizeAnimationOptions(rawOptions);
 	let cleanupCallbacks: Array<() => void> = [];
 	let hasPlayed = false;
+	let isPlaying = false;
 	let toggled = false;
 
 	const cleanup = () => {
 		cleanupCallbacks.forEach((callback) => callback());
 		cleanupCallbacks = [];
+		isPlaying = false;
 		cancelWrapperAnimations(wrapper);
 		const targets = getAnimationTargets(wrapper, options);
 		targets.forEach((target) => clearInlineState(target));
@@ -439,14 +475,25 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 		if (!canAnimate() || prefersReducedMotion()) {
 			return;
 		}
+		if (!reverse && options.once && (hasPlayed || isPlaying)) {
+			return;
+		}
 		const keyframes = resolveKeyframes(options);
 		const targets = getAnimationTargets(wrapper, options);
 		if (!targets.length) {
 			return;
 		}
 		cancelWrapperAnimations(wrapper);
-		wrapper.abwAnimations = animateTargets(targets, keyframes, options, reverse);
+		isPlaying = true;
+		const animations = animateTargets(targets, keyframes, options, reverse);
+		wrapper.abwAnimations = animations;
 		hasPlayed = true;
+		Promise.allSettled(animations.map((animation) => animation.finished)).finally(() => {
+			if (wrapper.abwAnimations === animations) {
+				isPlaying = false;
+				markWrapperPlayedWhenComplete(wrapper);
+			}
+		});
 	};
 
 	const primeInitialState = () => {
@@ -485,6 +532,13 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 		}
 
 		if (options.trigger === 'scroll-media') {
+			return;
+		}
+
+		if (options.trigger === 'inherit' || options.followParentAnimation) {
+			if (options.followParentAnimation) {
+				primeInitialState();
+			}
 			return;
 		}
 
@@ -559,7 +613,7 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 						}
 					});
 				},
-				{ threshold: [0, options.threshold, 1] }
+				{ threshold: [0, options.threshold, 1], rootMargin: options.rootMargin || '0px' }
 			);
 			observer.observe(wrapper);
 			cleanupCallbacks.push(() => observer.disconnect());
@@ -618,6 +672,7 @@ export function initAnimationWrappers(root: ParentNode = document): AnimationRun
 			easing: wrapper.dataset.ffawEasing,
 			once: wrapper.dataset.ffawOnce !== '0',
 			threshold: Number(wrapper.dataset.ffawThreshold || 0.25),
+			rootMargin: wrapper.dataset.ffawRootMargin || '',
 			loop: wrapper.dataset.ffawLoop === '1',
 			clickToggle: wrapper.dataset.ffawClickToggle === '1',
 			hideUntilHover: wrapper.dataset.ffawHideUntilHover === '1',

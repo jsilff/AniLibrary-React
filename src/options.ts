@@ -21,6 +21,7 @@ export const DEFAULT_ANIMATION_OPTIONS: NormalizedAnimationOptions = {
 	easing: 'ease-out',
 	once: true,
 	threshold: 0.25,
+	rootMargin: '',
 	loop: false,
 	clickToggle: false,
 	hideUntilHover: false,
@@ -112,6 +113,7 @@ export function normalizeAnimationOptions(options: AnimationOptions = {}): Norma
 		stagger: Math.max(0, Number(options.stagger ?? DEFAULT_ANIMATION_OPTIONS.stagger)),
 		intensity: Math.max(10, Math.min(200, Number(options.intensity ?? DEFAULT_ANIMATION_OPTIONS.intensity))),
 		threshold: Math.max(0, Math.min(1, Number(options.threshold ?? DEFAULT_ANIMATION_OPTIONS.threshold))),
+		rootMargin: String(options.rootMargin ?? DEFAULT_ANIMATION_OPTIONS.rootMargin),
 	};
 }
 
@@ -143,6 +145,7 @@ export function getAnimationDataAttributes(options: AnimationOptions = {}): Reco
 		'data-ffaw-easing': normalized.easing,
 		'data-ffaw-once': normalized.once ? '1' : '0',
 		'data-ffaw-threshold': String(normalized.threshold),
+		'data-ffaw-root-margin': normalized.rootMargin,
 		'data-ffaw-loop': normalized.loop ? '1' : '0',
 		'data-ffaw-click-toggle': normalized.clickToggle ? '1' : '0',
 		'data-ffaw-hide-until-hover': normalized.hideUntilHover ? '1' : '0',
