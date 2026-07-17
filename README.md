@@ -9,6 +9,20 @@ React-first refactor of the WordPress AniLibrary wrapper plugin.
 - **GitHub:** [jsilff/AniLibrary-React](https://github.com/jsilff/AniLibrary-React)
 - **Releases:** [v0.1.0 and later](https://github.com/jsilff/AniLibrary-React/releases)
 
+## Changelog
+
+### v0.1.7
+
+- **Fix:** scroll animations no longer flicker when an element sits on the viewport edge. `AnimationWrapper` always forwarded unset props as `undefined` (e.g. `once`), and `normalizeAnimationOptions` spread those over the defaults — so `once: true` became falsy and leaving the root re-primed the hidden state. Undefined option keys are now stripped before merge, and `once` falls back to the default explicitly.
+
+### v0.1.6
+
+- `optionsAt` responsive overrides, no-flash priming (`abw-pending` + layout-effect keyframe priming).
+
+### v0.1.5
+
+- Native layout stagger for lists/grids; mobile scroll stability improvements.
+
 ## Installation
 
 ```bash
@@ -45,7 +59,7 @@ Classes are still useful, but they should be an implementation detail. The wrapp
 - `direction`: `up`, `down`, `left`, `right`, `clockwise`, `counterclockwise`, `vertical`, or `horizontal`
 - `zoomMode`: `in` or `out`
 - `duration`, `delay`, `stagger`, `intensity`, `easing`, `threshold`, `rootMargin`
-- `once`, `loop`, `clickToggle`, `hideUntilHover`
+- `once` (default `true`), `loop`, `clickToggle`, `hideUntilHover`
 - `textGranularity`: `word`, `character`, or `line`
 - `inheritParentDelay`, `followParentAnimation`
 - `optionsAt`: responsive overrides keyed by CSS media query (see below)
