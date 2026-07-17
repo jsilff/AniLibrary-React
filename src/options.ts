@@ -157,19 +157,26 @@ export function normalizeAnimationOptions(options: AnimationOptions = {}): Norma
 	const normalizedPreset = normalizePresetSettings(options.preset, options.direction, options.zoomMode);
 	const trigger = normalizedPreset.preset === 'scroll-media' ? 'scroll-media' : options.trigger || DEFAULT_ANIMATION_OPTIONS.trigger;
 
+	// Drop undefined keys so React props like `once={undefined}` don't clobber defaults.
+	// Otherwise scroll wrappers re-prime on every viewport-edge leave and flicker.
+	const definedOptions = Object.fromEntries(
+		Object.entries(options).filter(([, value]) => value !== undefined)
+	) as AnimationOptions;
+
 	return {
 		...DEFAULT_ANIMATION_OPTIONS,
-		...options,
+		...definedOptions,
 		...normalizedPreset,
 		trigger,
-		loop: trigger === 'loop' || !!options.loop,
-		bounceCount: Math.max(1, Math.min(8, Number(options.bounceCount || DEFAULT_ANIMATION_OPTIONS.bounceCount))),
-		duration: Math.max(0, Number(options.duration ?? DEFAULT_ANIMATION_OPTIONS.duration)),
-		delay: Math.max(0, Number(options.delay ?? DEFAULT_ANIMATION_OPTIONS.delay)),
-		stagger: Math.max(0, Number(options.stagger ?? DEFAULT_ANIMATION_OPTIONS.stagger)),
-		intensity: Math.max(10, Math.min(200, Number(options.intensity ?? DEFAULT_ANIMATION_OPTIONS.intensity))),
-		threshold: Math.max(0, Math.min(1, Number(options.threshold ?? DEFAULT_ANIMATION_OPTIONS.threshold))),
-		rootMargin: String(options.rootMargin ?? DEFAULT_ANIMATION_OPTIONS.rootMargin),
+		loop: trigger === 'loop' || !!definedOptions.loop,
+		bounceCount: Math.max(1, Math.min(8, Number(definedOptions.bounceCount || DEFAULT_ANIMATION_OPTIONS.bounceCount))),
+		duration: Math.max(0, Number(definedOptions.duration ?? DEFAULT_ANIMATION_OPTIONS.duration)),
+		delay: Math.max(0, Number(definedOptions.delay ?? DEFAULT_ANIMATION_OPTIONS.delay)),
+		stagger: Math.max(0, Number(definedOptions.stagger ?? DEFAULT_ANIMATION_OPTIONS.stagger)),
+		intensity: Math.max(10, Math.min(200, Number(definedOptions.intensity ?? DEFAULT_ANIMATION_OPTIONS.intensity))),
+		threshold: Math.max(0, Math.min(1, Number(definedOptions.threshold ?? DEFAULT_ANIMATION_OPTIONS.threshold))),
+		rootMargin: String(definedOptions.rootMargin ?? DEFAULT_ANIMATION_OPTIONS.rootMargin),
+		once: definedOptions.once ?? DEFAULT_ANIMATION_OPTIONS.once,
 	};
 }
 
