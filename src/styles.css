@@ -22,8 +22,21 @@
 }
 
 /* Hide content on first paint until the runtime primes keyframe-from state. */
-.abw-wrapper.abw-pending:not(.abw-played):not(.abw-reduced-motion) {
+.abw-wrapper.abw-pending:not(.abw-reduced-motion) {
 	opacity: 0;
+}
+
+/*
+ * Hide-until-hover: keep the wrapper's own content (and joining child wrappers)
+ * hidden until hover arms it, but leave independent nested wrappers visible so
+ * they can run their own entrances. The data-attribute variant applies before JS
+ * attaches the `abw-hide-until-hover` class (no flash on load).
+ */
+.abw-wrapper.abw-hide-until-hover > *:not(.abw-wrapper),
+.abw-wrapper.abw-hide-until-hover > .abw-wrapper[data-ffaw-follow-parent-animation="1"],
+.abw-wrapper[data-ffaw-hide-until-hover="1"]:not(.abw-hover-armed) > *:not(.abw-wrapper),
+.abw-wrapper[data-ffaw-hide-until-hover="1"]:not(.abw-hover-armed) > .abw-wrapper[data-ffaw-follow-parent-animation="1"] {
+	opacity: 0 !important;
 }
 
 .abw-reduced-motion,
@@ -33,12 +46,6 @@
 	transform: none !important;
 	filter: none !important;
 	opacity: 1 !important;
-}
-
-/* Safety net when scroll animations complete or are torn down. */
-.abw-wrapper.abw-played > * {
-	opacity: 1 !important;
-	transform: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

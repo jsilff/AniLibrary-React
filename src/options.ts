@@ -1,7 +1,9 @@
 import type {
+	AnimationMode,
 	AnimationOptions,
 	AnimationPreset,
 	Direction,
+	ExitMode,
 	NormalizedAnimationOptions,
 	NormalizedAnimationPreset,
 	ZoomMode,
@@ -14,6 +16,8 @@ export const DEFAULT_ANIMATION_OPTIONS: NormalizedAnimationOptions = {
 	preset: 'fade',
 	contentKind: 'mixed',
 	trigger: 'scroll',
+	animationMode: 'in',
+	exitMode: 'rewind',
 	intensity: 100,
 	direction: 'up',
 	zoomMode: 'in',
@@ -100,24 +104,72 @@ export function normalizePresetSettings(
 	return { preset, direction, zoomMode };
 }
 
-function keyframesNeedPriming(keyframes: AnimationFrame[]): boolean {
+export function normalizeExitMode(rawMode?: string): ExitMode {
+	return rawMode === 'continue' ? 'continue' : 'rewind';
+}
+
+export function animationModeIncludesIn(mode: AnimationMode): boolean {
+	return mode === 'in' || mode === 'both';
+}
+
+export function animationModeIncludesOut(mode: AnimationMode): boolean {
+	return mode === 'out' || mode === 'both';
+}
+
+/**
+ * Infer the animation mode from the remaining wiring when it isn't set explicitly.
+ * Mirrors the WordPress legacy inference so migrated markup keeps its exit wiring:
+ * hover, click+toggle, and replayable scroll all imply an exit too.
+ */
+function inferAnimationMode(
+	trigger: AnimationOptions['trigger'],
+	clickToggle: boolean | undefined,
+	once: boolean | undefined
+): AnimationMode {
+	if (trigger === 'hover') {
+		return 'both';
+	}
+	if (trigger === 'click' && clickToggle) {
+		return 'both';
+	}
+	if (trigger === 'scroll' && once === false) {
+		return 'both';
+	}
+	return 'in';
+}
+
+/**
+ * Resolve the animation mode from a wrapper's data attributes.
+ * Explicit `in`/`out`/`both` win; otherwise fall back to legacy inference.
+ * Used by the data-attribute (WordPress-style) init path.
+ */
+export function resolveAnimationMode(wrapper: HTMLElement): AnimationMode {
+	const raw = wrapper.dataset.ffawAnimationMode;
+	if (raw === 'out' || raw === 'both' || raw === 'in') {
+		return raw;
+	}
+	const trigger = (wrapper.dataset.ffawTrigger || 'scroll') as AnimationOptions['trigger'];
+	const clickToggle = wrapper.dataset.ffawClickToggle === '1';
+	const once = wrapper.dataset.ffawOnce !== '0';
+	return inferAnimationMode(trigger, clickToggle, once);
+}
+
+/**
+ * A preset "starts hidden" when its first frame fades in from below full opacity.
+ * Matches the WordPress runtime: soft loops (pulse/float/bounce) begin at rest
+ * (opacity 1 / undefined) and must not be primed hidden or flagged for no-flash.
+ */
+export function keyframesStartHidden(keyframes: AnimationFrame[]): boolean {
 	const from = keyframes[0];
 	if (!from) {
 		return false;
 	}
 	const firstOpacity = from.opacity;
-	if (firstOpacity !== undefined) {
-		const numericOpacity = Number(firstOpacity);
-		if (!Number.isNaN(numericOpacity) && numericOpacity < 1) {
-			return true;
-		}
+	if (firstOpacity === undefined) {
+		return false;
 	}
-	return from.transform !== undefined && from.transform !== 'none'
-		|| from.filter !== undefined && from.filter !== 'none';
-}
-
-export function keyframesStartHidden(keyframes: AnimationFrame[]): boolean {
-	return keyframesNeedPriming(keyframes);
+	const numericOpacity = Number(firstOpacity);
+	return !Number.isNaN(numericOpacity) && numericOpacity < 1;
 }
 
 export function animationStartsHidden(options: AnimationOptions = {}): boolean {
@@ -133,6 +185,11 @@ export function animationStartsHidden(options: AnimationOptions = {}): boolean {
 export function shouldPrimeOnMount(options: AnimationOptions = {}): boolean {
 	const merged = applyOptionsAt(options, options.optionsAt ?? []);
 	const normalized = normalizeAnimationOptions(merged);
+
+	// Out-only wrappers start at rest (visible) and only exit later — never prime hidden.
+	if (normalized.animationMode === 'out') {
+		return false;
+	}
 
 	if (normalized.trigger === 'scroll-media' || normalized.trigger === 'inherit') {
 		return normalized.followParentAnimation && animationStartsHidden(merged);
@@ -163,11 +220,18 @@ export function normalizeAnimationOptions(options: AnimationOptions = {}): Norma
 		Object.entries(options).filter(([, value]) => value !== undefined)
 	) as AnimationOptions;
 
+	const explicitMode = definedOptions.animationMode;
+	const animationMode: AnimationMode = explicitMode === 'in' || explicitMode === 'out' || explicitMode === 'both'
+		? explicitMode
+		: inferAnimationMode(trigger, definedOptions.clickToggle, definedOptions.once);
+
 	return {
 		...DEFAULT_ANIMATION_OPTIONS,
 		...definedOptions,
 		...normalizedPreset,
 		trigger,
+		animationMode,
+		exitMode: normalizeExitMode(definedOptions.exitMode),
 		loop: trigger === 'loop' || !!definedOptions.loop,
 		bounceCount: Math.max(1, Math.min(8, Number(definedOptions.bounceCount || DEFAULT_ANIMATION_OPTIONS.bounceCount))),
 		duration: Math.max(0, Number(definedOptions.duration ?? DEFAULT_ANIMATION_OPTIONS.duration)),
@@ -198,6 +262,8 @@ export function getAnimationDataAttributes(options: AnimationOptions = {}): Reco
 		'data-ffaw-preset': normalized.preset,
 		'data-ffaw-content-kind': normalized.contentKind,
 		'data-ffaw-trigger': normalized.trigger,
+		'data-ffaw-animation-mode': normalized.animationMode,
+		'data-ffaw-exit-mode': normalized.exitMode,
 		'data-ffaw-intensity': String(normalized.intensity),
 		'data-ffaw-direction': normalized.direction,
 		'data-ffaw-zoom-mode': normalized.zoomMode,

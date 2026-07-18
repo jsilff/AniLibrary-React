@@ -41,6 +41,8 @@ export type NormalizedAnimationPreset =
 
 export type AnimationTrigger = 'scroll' | 'load' | 'hover' | 'click' | 'loop' | 'scroll-media' | 'inherit';
 export type ContentKind = 'text' | 'media' | 'layout' | 'mixed';
+export type AnimationMode = 'in' | 'out' | 'both';
+export type ExitMode = 'rewind' | 'continue';
 export type Direction =
 	| 'up'
 	| 'down'
@@ -64,6 +66,8 @@ export interface AnimationOptions {
 	preset?: AnimationPreset;
 	contentKind?: ContentKind;
 	trigger?: AnimationTrigger;
+	animationMode?: AnimationMode;
+	exitMode?: ExitMode;
 	intensity?: number;
 	direction?: Direction;
 	zoomMode?: ZoomMode;

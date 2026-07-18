@@ -1,6 +1,6 @@
 {
   "name": "@jsilff/anilibrary-react",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "description": "React wrapper component for lightweight, library driven content animations.",
   "author": "Jonathan Silberman <jsil@fearless-future.com>",
   "license": "GPL-2.0-or-later",
@@ -48,7 +48,8 @@
     "build": "npm run clean && tsc -p tsconfig.build.json && cp src/styles.css dist/styles.css",
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "npm run build && node --test tests/*.test.mjs"
   },
   "peerDependencies": {
     "react": ">=18.2.0",
@@ -58,6 +59,7 @@
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.2.25",
     "eslint": "^8.57.0",
+    "jsdom": "^27.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "^5.4.5"
