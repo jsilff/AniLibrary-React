@@ -4,7 +4,7 @@ export function clamp(value: number, min: number, max: number): number {
 	return Math.min(Math.max(value, min), max);
 }
 
-function parseNumericToken(token: string): { value: number; unit: string } | null {
+export function parseNumericToken(token: string): { value: number; unit: string } | null {
 	const match = String(token).trim().match(/^(-?\d*\.?\d+)([a-z%]*)$/i);
 	if (!match) {
 		return null;

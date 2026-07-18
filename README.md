@@ -11,6 +11,22 @@ React-first refactor of the WordPress AniLibrary wrapper plugin.
 
 ## Changelog
 
+### v0.2.0
+
+Behavioral parity with the WordPress AniLibrary 1.2.0 runtime, plus the exit-animation system.
+
+- **New: `animationMode`** (`in` | `out` | `both`, default `in`). `in` plays the entrance only, `out` starts at rest and exits on leave/toggle, and `both` does a full enter/exit cycle. Exit keyframes are **derived from the entrance preset** — there is no separate exit catalog.
+- **New: `exitMode`** (`rewind` | `continue`, default `rewind`) — used when the wrapper plays out. `rewind` reverses the entrance path (back the way it came); `continue` keeps the opacity/blur cue but flips directional transforms so motion carries through. Multi-step soft loops always rewind.
+- **Exit triggers:** exit now plays on hover leave, click toggle-off, and scroll leave whenever the mode includes `out`.
+- **Legacy inference:** if `animationMode` is unset, `hover` (and `click` + `clickToggle`, and `scroll` + `once={false}`) infer `both` so they exit as before. Set `animationMode="in"` explicitly to opt out of the exit. **Hover exit therefore needs `animationMode` to include `out` (which is the default inference for hover).**
+- **Exit gating:** exits are skipped while the entrance is still delayed, queued until a mid-flight entrance finishes (no interrupted cycles), and the initial invisible state is re-primed after a skip/exit.
+- **Hide-until-hover:** selective CSS keeps the wrapper's own content and *joining* child wrappers hidden until hover arms it, while independent nested wrappers stay visible and run their own animations. Hover start-hidden state is primed on load when `hideUntilHover` is on.
+- **Reverse stagger on text exits:** the last split unit leaves first.
+- **Nested targeting:** clearer "join parent animation" (`followParentAnimation`) vs "match parent timing" (`inheritParentDelay`); nested-only parents (e.g. Rise wrapping a Hover child) fall back to animating the child shell so the outer effect fires.
+- **Parent replay cascade:** replaying a parent (loop / repeat) cascades to direct nested `scroll` children in view and nested `loop` children.
+- Preserves all React-specific features: `optionsAt`, `rootMargin`, `trigger="inherit"`, `abw-pending` no-flash priming, and marked `abw-stagger-item` layout targets.
+- Added a jsdom + `node:test` suite (`npm test`) covering nesting targets, exit gating, hide-until-hover visibility, delay inheritance, mode resolution, and parent-replay cascading.
+
 ### v0.1.7
 
 - **Fix:** scroll animations no longer flicker when an element sits on the viewport edge. `AnimationWrapper` always forwarded unset props as `undefined` (e.g. `once`), and `normalizeAnimationOptions` spread those over the defaults — so `once: true` became falsy and leaving the root re-primed the hidden state. Undefined option keys are now stripped before merge, and `once` falls back to the default explicitly.
@@ -56,6 +72,8 @@ Classes are still useful, but they should be an implementation detail. The wrapp
 - `preset`: `fade`, `slide`, `zoom`, `blur-in`, `rotate-in`, `flip`, `text-rise`, `word-cascade`, `letter-pop`, `pulse-soft`, `float-soft`, or `bounce-soft`
 - `trigger`: `scroll`, `load`, `hover`, `click`, `loop`, or `inherit`
 - `contentKind`: `text`, `media`, `layout`, or `mixed`
+- `animationMode`: `in` (entrance only, default), `out` (exit only), or `both` (enter + exit)
+- `exitMode`: `rewind` (reverse the entrance, default) or `continue` (flip travel direction on exit) — only used when the mode plays out
 - `direction`: `up`, `down`, `left`, `right`, `clockwise`, `counterclockwise`, `vertical`, or `horizontal`
 - `zoomMode`: `in` or `out`
 - `duration`, `delay`, `stagger`, `intensity`, `easing`, `threshold`, `rootMargin`
@@ -63,6 +81,18 @@ Classes are still useful, but they should be an implementation detail. The wrapp
 - `textGranularity`: `word`, `character`, or `line`
 - `inheritParentDelay`, `followParentAnimation`
 - `optionsAt`: responsive overrides keyed by CSS media query (see below)
+
+### Enter / exit modes
+
+By default a wrapper only plays its entrance (`animationMode="in"`). To also animate an exit, set `animationMode="both"` (enter then exit) or `animationMode="out"` (start visible, exit on the trigger). The exit is derived from the entrance preset — pick how it leaves with `exitMode`:
+
+```tsx
+<AnimationWrapper preset="fade" trigger="hover" animationMode="both" exitMode="continue">
+  <p>Fades up on hover, keeps drifting up as it leaves.</p>
+</AnimationWrapper>
+```
+
+> **Hover note:** when `animationMode` is unset, `hover` (and `click` + `clickToggle`, and replayable `scroll` with `once={false}`) infer `both` so they exit on leave — matching the WordPress runtime. Pass `animationMode="in"` to disable the exit.
 
 The package also exports:
 
@@ -74,6 +104,10 @@ The package also exports:
 - `getAnimationDataAttributes`
 - `setupAnimationWrapper`
 - `initAnimationWrappers`
+- `deriveExitKeyframes`
+- `resolveAnimationMode`
+- `normalizeExitMode`
+- `animationModeIncludesIn` / `animationModeIncludesOut`
 
 ## Responsive options (`optionsAt`)
 
