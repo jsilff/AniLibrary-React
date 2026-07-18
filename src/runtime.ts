@@ -947,7 +947,9 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 	const attach = () => {
 		cleanup();
 		options = resolveOptions();
-		applyDataAttributes(wrapper, { ...baseRawOptions, optionsAt: optionsAtList });
+		// Serialize the resolved (optionsAt-applied) values — animateChildren /
+		// resolveWrapperAnimationState read preset/direction/duration/etc from dataset.
+		applyDataAttributes(wrapper, { ...options, optionsAt: optionsAtList });
 
 		Array.from(wrapper.classList).forEach((className) => {
 			if (className.startsWith('abw-preset-') || className.startsWith('abw-trigger-') || className.startsWith('abw-kind-')) {
@@ -1316,7 +1318,7 @@ export function setupAnimationWrapper(element: HTMLElement, rawOptions: Animatio
 		const next = resolveOptions();
 		const needsReattach = reattachIfNeeded && observerConfigChanged(next);
 		options = next;
-		applyDataAttributes(wrapper, { ...baseRawOptions, optionsAt: optionsAtList });
+		applyDataAttributes(wrapper, { ...options, optionsAt: optionsAtList });
 		syncPendingClass(wrapper, applyOptionsAt(baseRawOptions, optionsAtList));
 
 		if (needsReattach) {

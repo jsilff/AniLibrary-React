@@ -255,3 +255,44 @@ describe('preset / intensity sanity', () => {
 		assert.notEqual(strong[0].transform, base[0].transform);
 	});
 });
+
+describe('optionsAt responsive serialization', () => {
+	it('writes matched optionsAt overrides into data-ffaw-* used by animateChildren', () => {
+		const { document, abw, window, clearAnimateCalls, animateCalls } = createRuntime();
+		window.matchMedia = (query) => ({
+			matches: query === '(max-width: 767px)',
+			media: query,
+			addEventListener() {},
+			removeEventListener() {},
+			addListener() {},
+			removeListener() {},
+		});
+
+		const wrap = document.createElement('div');
+		wrap.className = 'abw-wrapper';
+		wrap.innerHTML = '<p>Responsive</p>';
+		document.body.appendChild(wrap);
+
+		abw.setupAnimationWrapper(wrap, {
+			preset: 'slide',
+			trigger: 'load',
+			direction: 'right',
+			duration: 700,
+			delay: 0,
+			animationMode: 'in',
+			optionsAt: [
+				{ query: '(max-width: 767px)', direction: 'up', duration: 250 },
+			],
+		});
+
+		assert.equal(wrap.dataset.ffawDirection, 'up');
+		assert.equal(wrap.dataset.ffawDuration, '250');
+		assert.ok(wrap.dataset.ffawOptionsAt);
+
+		clearAnimateCalls();
+		abw.animateChildren(wrap, false);
+		assert.ok(animateCalls.length > 0);
+		assert.equal(animateCalls[0].options.duration, 250);
+		assert.match(String(animateCalls[0].keyframes[0].transform || ''), /translate3d\(0,\s*-?\d/);
+	});
+});
