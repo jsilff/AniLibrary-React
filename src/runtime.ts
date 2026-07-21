@@ -128,6 +128,34 @@ function clearInlineState(target: HTMLElement): void {
 	target.style.filter = '';
 }
 
+/**
+ * Bake the finished WAAPI frame into inline styles so WebKit (esp. iOS) does not
+ * keep a mid-flight `filter: blur(...)` composited layer after blur-in.
+ * Do not cancel here — exit gating still needs `playState === 'finished'` on the
+ * entrance animations until the next play replaces them.
+ */
+function settleCompletedEntrance(animations: Animation[], targets: HTMLElement[]): void {
+	animations.forEach((animation) => {
+		try {
+			if (typeof animation.commitStyles === 'function') {
+				animation.commitStyles();
+			}
+		} catch {
+			// commitStyles can throw if the effect was already released.
+		}
+	});
+
+	// Force a style flush so WebKit drops a stuck filter layer, then return to natural CSS.
+	// Finished animations with fill:forwards still hold the rest frame afterward.
+	targets.forEach((target) => {
+		target.style.setProperty('opacity', '1');
+		target.style.setProperty('filter', 'none');
+		target.style.setProperty('transform', 'none');
+		void target.offsetWidth;
+		clearInlineState(target);
+	});
+}
+
 /* -------------------------------------------------------------------------- */
 /* Text splitting                                                             */
 /* -------------------------------------------------------------------------- */
@@ -712,9 +740,15 @@ function animateChildren(wrapper: WrapperElement, reverse = false, config: PlayC
 			animations.map((animation) => animation.finished.catch(() => undefined))
 		).then(() => {
 			const completedCleanly = animations.every((animation) => animation.playState === 'finished');
-			if (completedCleanly) {
-				wrapper.abwEntranceCompleted = true;
+			if (!completedCleanly) {
+				return;
 			}
+			// Only settle if this play is still the active entrance (not replaced/canceled).
+			if (wrapper.abwAnimations !== animations) {
+				return;
+			}
+			wrapper.abwEntranceCompleted = true;
+			settleCompletedEntrance(animations, targets);
 		});
 	}
 

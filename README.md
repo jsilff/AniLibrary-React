@@ -11,6 +11,10 @@ React-first refactor of the WordPress AniLibrary wrapper plugin.
 
 ## Changelog
 
+### v0.2.1 (unreleased)
+
+- **Fix:** after a clean entrance finishes, commit WAAPI styles and flush opacity/filter/transform so iOS Safari does not leave list rows stuck mid `blur-in` (composited filter layer). Exit gating is preserved — finished entrance animations are not canceled on settle.
+
 ### v0.2.0
 
 Behavioral parity with the WordPress AniLibrary 1.2.0 runtime, plus the exit-animation system.
