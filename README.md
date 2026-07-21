@@ -11,6 +11,11 @@ React-first refactor of the WordPress AniLibrary wrapper plugin.
 
 ## Changelog
 
+### v0.2.2
+
+- **Fix:** `blur-in` no longer animates `filter` (opacity + rise only). WAAPI blur left list rows stuck on mobile Safari after finish/cancel.
+- **Fix:** entrance settle watchdog forces the rest state after delay + duration if `animation.finished` never resolves cleanly.
+
 ### v0.2.1
 
 - **Fix:** after a clean entrance finishes, commit WAAPI styles and flush opacity/filter/transform so iOS Safari does not leave list rows stuck mid `blur-in` (composited filter layer). Exit gating is preserved — finished entrance animations are not canceled on settle.

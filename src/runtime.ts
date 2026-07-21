@@ -43,6 +43,7 @@ interface WrapperElement extends HTMLElement {
 	abwEntranceCompleted?: boolean;
 	abwExitQueued?: boolean;
 	abwExitQueueToken?: number;
+	abwSettleTimers?: number[];
 	abwReplay?: (config?: PlayConfig) => void;
 }
 
@@ -613,6 +614,10 @@ function animateTargets(
 }
 
 function cancelWrapperAnimations(wrapper: WrapperElement): void {
+	const settleTimers = Array.isArray(wrapper.abwSettleTimers) ? wrapper.abwSettleTimers : [];
+	settleTimers.forEach((id) => window.clearTimeout(id));
+	wrapper.abwSettleTimers = [];
+
 	const runningAnimations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
 	runningAnimations.forEach((animation) => {
 		try {
@@ -736,6 +741,17 @@ function animateChildren(wrapper: WrapperElement, reverse = false, config: PlayC
 	}
 
 	if (!reverse && iterations !== Infinity && animations.length) {
+		const settleIfCurrent = () => {
+			if (wrapper.abwAnimations !== animations) {
+				return;
+			}
+			if (wrapper.abwEntranceCompleted) {
+				return;
+			}
+			wrapper.abwEntranceCompleted = true;
+			settleCompletedEntrance(animations, targets);
+		};
+
 		Promise.allSettled(
 			animations.map((animation) => animation.finished.catch(() => undefined))
 		).then(() => {
@@ -743,13 +759,17 @@ function animateChildren(wrapper: WrapperElement, reverse = false, config: PlayC
 			if (!completedCleanly) {
 				return;
 			}
-			// Only settle if this play is still the active entrance (not replaced/canceled).
-			if (wrapper.abwAnimations !== animations) {
-				return;
-			}
-			wrapper.abwEntranceCompleted = true;
-			settleCompletedEntrance(animations, targets);
+			settleIfCurrent();
 		});
+
+		// Watchdog: if `finished` never resolves (or Safari leaves a stuck layer),
+		// force the rest state after the full delay + duration window.
+		const lastStagger = Math.max(0, targets.length - 1) * effectiveStagger;
+		const settleAfterMs = Math.max(0, delay) + duration + lastStagger + 80;
+		const settleTimer = window.setTimeout(settleIfCurrent, settleAfterMs);
+		const priorTimers = Array.isArray(wrapper.abwSettleTimers) ? wrapper.abwSettleTimers : [];
+		priorTimers.forEach((id) => window.clearTimeout(id));
+		wrapper.abwSettleTimers = [settleTimer];
 	}
 
 	if (typeof config.onComplete === 'function' && iterations !== Infinity && animations.length) {
