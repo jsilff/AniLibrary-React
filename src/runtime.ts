@@ -130,10 +130,11 @@ function clearInlineState(target: HTMLElement): void {
 }
 
 /**
- * Bake the finished WAAPI frame into inline styles so WebKit (esp. iOS) does not
- * keep a mid-flight `filter: blur(...)` composited layer after blur-in.
- * Do not cancel here — exit gating still needs `playState === 'finished'` on the
- * entrance animations until the next play replaces them.
+ * Release WAAPI fill and force a sharp rest state.
+ * Mobile Safari often keeps a composited mid-flight `filter: blur(...)` layer after
+ * finish/cancel; commitStyles alone is not enough — cancel the effect, then bounce
+ * the filter through a tiny blur and none so WebKit drops the stuck layer.
+ * Call only after `abwEntranceCompleted = true` so exit gating still works.
  */
 function settleCompletedEntrance(animations: Animation[], targets: HTMLElement[]): void {
 	animations.forEach((animation) => {
@@ -144,14 +145,20 @@ function settleCompletedEntrance(animations: Animation[], targets: HTMLElement[]
 		} catch {
 			// commitStyles can throw if the effect was already released.
 		}
+		try {
+			animation.cancel();
+		} catch {
+			// Ignore already-finished / released animations.
+		}
 	});
 
-	// Force a style flush so WebKit drops a stuck filter layer, then return to natural CSS.
-	// Finished animations with fill:forwards still hold the rest frame afterward.
 	targets.forEach((target) => {
 		target.style.setProperty('opacity', '1');
-		target.style.setProperty('filter', 'none');
 		target.style.setProperty('transform', 'none');
+		// Bounce filter so WebKit rebuilds the layer instead of keeping mid-blur.
+		target.style.setProperty('filter', 'blur(0.01px)');
+		void target.offsetWidth;
+		target.style.setProperty('filter', 'none');
 		void target.offsetWidth;
 		clearInlineState(target);
 	});
@@ -750,6 +757,7 @@ function animateChildren(wrapper: WrapperElement, reverse = false, config: PlayC
 			}
 			wrapper.abwEntranceCompleted = true;
 			settleCompletedEntrance(animations, targets);
+			wrapper.abwAnimations = [];
 		};
 
 		Promise.allSettled(
@@ -843,6 +851,11 @@ function clearQueuedExit(wrapper: WrapperElement): void {
 function queueExitAfterEntrance(wrapper: WrapperElement, config: PlayConfig = {}): void {
 	const animations = Array.isArray(wrapper.abwAnimations) ? wrapper.abwAnimations : [];
 	if (!animations.length) {
+		// Entrance may already have been settled (animations canceled after complete).
+		if (wrapper.abwEntranceCompleted) {
+			playExitAnimation(wrapper, config);
+			return;
+		}
 		cancelPendingEntrance(wrapper, config);
 		return;
 	}
@@ -864,7 +877,8 @@ function queueExitAfterEntrance(wrapper: WrapperElement, config: PlayConfig = {}
 		}
 
 		const completedCleanly = animations.every((animation) => animation.playState === 'finished');
-		if (!completedCleanly) {
+		// Settled entrances cancel WAAPI (Safari blur fix) — trust the completion flag.
+		if (!completedCleanly && !wrapper.abwEntranceCompleted) {
 			cancelPendingEntrance(wrapper, config);
 			return;
 		}

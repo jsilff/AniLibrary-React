@@ -54,6 +54,7 @@ function installAnimateMock(window) {
 					return { delay, duration };
 				},
 			},
+			commitStyles() {},
 			cancel() {
 				playState = 'idle';
 			},

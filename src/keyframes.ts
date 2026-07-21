@@ -4,10 +4,8 @@ export type AnimationFrame = Keyframe & { offset?: number };
 
 const PRESET_KEYFRAMES: Record<string, AnimationFrame[]> = {
 	'blur-in': [
-		// Opacity + rise only. Animating `filter: blur()` via WAAPI leaves a stuck
-		// composited blur layer on mobile Safari after cancel/finish — common on list rows.
-		{ opacity: 0, transform: 'translate3d(0, 14px, 0)' },
-		{ opacity: 1, transform: 'translate3d(0, 0, 0)' },
+		{ opacity: 0, filter: 'blur(8px)' },
+		{ opacity: 1, filter: 'blur(0px)' },
 	],
 	'text-rise': [
 		{ opacity: 0, transform: 'translate3d(0, 14px, 0)' },

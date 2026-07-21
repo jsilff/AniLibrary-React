@@ -1,6 +1,6 @@
 {
   "name": "@jsilff/anilibrary-react",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "React wrapper component for lightweight, library driven content animations.",
   "author": "Jonathan Silberman <jsil@fearless-future.com>",
   "license": "GPL-2.0-or-later",
